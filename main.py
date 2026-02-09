@@ -3,20 +3,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-df = pd.read_csv("./data/collectedData.csv", encoding="utf-8")
-
+df = pd.read_csv(
+    "./data/collectedData.csv",
+    encoding="utf-8",
+    low_memory=False
+)
 
 """ 
 DESCRIPCIÓN GENERAL DE LOS DATOS
 """
-# Cantidad de observaiones y variables
+# Cantidad de observaciones y variables
 rows, cols = df.shape
 print(f"Cantidad de observaciones: {rows}")
 print(f"Cantidad de variables: {cols}")
 
 # Nombres de las variables
-varNames = df.columns.tolist()
-print(f"\nVariables del dataset: {varNames}")
+print(f"\nVariables del dataset: {df.columns.tolist()}")
 
 # Tipos de variables
 print("\nTipos de datos:")
@@ -25,6 +27,10 @@ print(df.dtypes)
 # Valores faltantes
 print("\nValores faltantes por variable:")
 print(df.isna().sum().sort_values(ascending=False))
+
+# Eliminación de columnas completamente vacías
+cols_vacias = df.columns[df.isna().all()]
+df = df.drop(columns=cols_vacias)
 
 """
 EXPLORACIÓN DE VARIABLES NUMÉRICAS
@@ -63,3 +69,29 @@ medidasNumericas = pd.DataFrame({
 
 print("\nMedidas adicionales:")
 print(medidasNumericas)
+
+# Distribución gráfica
+for col in dfNumericas.columns:
+    plt.figure(figsize=(5,3))
+
+    if col in ["Edadp", "Edadm"]:
+        data = dfNumericas[col].dropna()
+        data = data[(data >= 0) & (data <= 100)]
+        sns.histplot(data, kde=True)
+        plt.xlim(0, 100)
+
+    elif col in ["Libras", "Onzas"]:
+        data = dfNumericas[col].dropna()
+        data = data[(data >= 0) & (data <= 20)]
+        sns.histplot(data, kde=True)
+        plt.xlim(0, 20)
+
+    else:
+        sns.histplot(dfNumericas[col].dropna(), kde=True)
+
+    plt.title(f"Distribución de {col}")
+    plt.xlabel(col)
+    plt.ylabel("Frecuencia")
+    plt.tight_layout()
+    plt.show()
+
