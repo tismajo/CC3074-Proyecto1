@@ -95,3 +95,22 @@ for col in dfNumericas.columns:
     plt.tight_layout()
     plt.show()
 
+"""
+EXPLORACIÓN DE VARIABLES CATEGÓRICAS
+"""
+dfCategoricas = df.select_dtypes(include=["object", "category", "string"])
+
+# Tablas de frecuencia
+for col in dfCategoricas.columns:
+    print(f"\nTabla de frecuencias para: {col}")
+
+    freq_abs = df[col].value_counts(dropna=False)
+    freq_rel = df[col].value_counts(normalize=True, dropna=False) * 100
+
+    tabla_frecuencias = pd.DataFrame({
+        "Frecuencia absoluta": freq_abs,
+        "Frecuencia relativa (%)": freq_rel.round(2)
+    })
+
+    print(tabla_frecuencias.head(10))
+
