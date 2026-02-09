@@ -114,3 +114,28 @@ for col in dfCategoricas.columns:
 
     print(tabla_frecuencias.head(10))
 
+
+"""
+RELACIONES ENTRE VARIABLES
+"""
+# Numérica vs Numérica: Correlación
+print("\nMatriz de correlación:")
+correlacion = dfNumericas.corr()
+print(correlacion)
+
+plt.figure(figsize=(10,6))
+sns.heatmap(correlacion, cmap="coolwarm")
+plt.title("Mapa de calor de correlaciones")
+plt.show()
+
+# Categórica vs Numérica
+# Media de edad según sexo (si existen ambas columnas)
+if "Sexo" in df.columns and "Edadp" in df.columns:
+    print("\nEdad promedio según sexo:")
+    print(df.groupby("Sexo")["Edadp"].mean())
+
+# Categórica vs Categórica
+# Tabla cruzada (ejemplo)
+if "Sexo" in df.columns and "Escivp" in df.columns:
+    print("\nTabla cruzada Sexo vs Estado civil:")
+    print(pd.crosstab(df["Sexo"], df["Escivp"]))
