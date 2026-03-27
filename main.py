@@ -1,122 +1,167 @@
 """
-main.py — punto de entrada del pipeline de análisis.
-
-Uso:
-    python main.py neonatales
-    python main.py defunciones
-    python main.py        ← ejecuta ambos
+main.py — versión con menú interactivo 🚀
 """
 
-import sys
+import pandas as pd
 from collectData import collect_and_clean
 from dataAnalysis import run_analysis
-
+from dataIntegration import integrar_datasets
 
 # =============================================================================
-# CONFIGURACIONES POR DATASET
-# Aquí defines los parámetros de cada dataset de forma centralizada.
+# CONFIGURACIONES
 # =============================================================================
 
-def get_config_neonatales() -> dict:
+def get_config_neonatales():
     return {
-        "label":         "neonatales",
-        "input_dir":     "./data/raw",
-        "output_csv":    "./data/collectedData_neonatales.csv",
+        "label": "neonatales",
+        "input_dir": "./data/raw",
+        "output_csv": "./data/collectedData_neonatales.csv",
         "master_columns": [
-            'Depreg', 'Mupreg', 'Mesreg', 'Tipoins', 'Depocu', 'Mupocu',
-            'Areag', 'Libras', 'Onzas', 'Diaocu', 'Mesocu', 'Añoocu', 'Sexo',
-            'Tipar', 'Viapar', 'Edadp', 'Paisrep', 'Deprep', 'Muprep',
-            'Pueblopp', 'Pueblopm', 'Escivp', 'Paisnacp', 'Depnap', 'Munpnap',
-            'Mupnap', 'Naciop', 'Escolap', 'Ocupap', 'Ciuopad', 'Edadm',
-            'Paisrem', 'Deprem', 'Muprem', 'Gretnp', 'Gretnm', 'Grupetma',
-            'Escivm', 'Paisnacm', 'Depnam', 'Munpnam', 'Mupnam', 'Munnam',
-            'Naciom', 'Escolam', 'Ocupam', 'Ciuomad', 'Asisrec', 'Sitioocu',
-            'Tohite', 'Tohinm', 'Tohivi',
+            'Depreg','Mupreg','Mesreg','Tipoins','Depocu','Mupocu','Areag',
+            'Libras','Onzas','Diaocu','Mesocu','Añoocu','Sexo','Tipar','Viapar',
+            'Edadp','Paisrep','Deprep','Muprep','Pueblopp','Pueblopm','Escivp',
+            'Paisnacp','Depnap','Munpnap','Mupnap','Naciop','Escolap','Ocupap',
+            'Ciuopad','Edadm','Paisrem','Deprem','Muprem','Gretnp','Gretnm',
+            'Grupetma','Escivm','Paisnacm','Depnam','Munpnam','Mupnam','Munnam',
+            'Naciom','Escolam','Ocupam','Ciuomad','Asisrec','Sitioocu',
+            'Tohite','Tohinm','Tohivi',
         ],
-        # Análisis
-        "cluster_vars":   ["Edadp", "Edadm", "Libras", "Onzas", "Añoocu"],
-        "cat_cross":      ("Sexo", "Edadp"),
-        "crosstab_cols":  ("Sexo", "Escivp"),
-        "n_clusters":     3,
-        "sample_size":    5000,
+        "cluster_vars": ["Edadm","Edadp","Libras","Onzas","Añoocu"],
+        "col_dep": "Depocu",
+        "col_anio": "Añoocu",
     }
 
 
-def get_config_defunciones() -> dict:
-    """
-    Ajusta 'master_columns' con los nombres REALES de las columnas
-    que tienen los archivos .sav de defunciones neonatales.
-    """
+def get_config_defunciones():
     return {
-        "label":         "defunciones",
-        "input_dir":     "./data/raw_defunciones",
-        "output_csv":    "./data/collectedData_defunciones.csv",
+        "label": "defunciones",
+        "input_dir": "./data/raw_defunciones",
+        "output_csv": "./data/collectedData_defunciones.csv",
         "master_columns": [
-            # ── Reemplaza con los nombres exactos de tus archivos de defunciones ──
-            'Depreg', 'Mupreg', 'Mesreg', 'Tipoins',
-            'Añodef', 'Diadef', 'Mesdef',              # ej: columnas de fecha de defunción
-            'Sexo', 'Edadfal',                          # ej: edad al fallecer
-            'Causdef',                                  # ej: causa de defunción
-            'Depdef', 'Mundef',
-            'Edadm', 'Edadp',
-            'Paisnacm', 'Paisnacp',
-            # ... agrega o quita según lo que tengan tus archivos
+            'Depreg','Mupreg','Mesreg','Tipoins',
+            'Depdef','Mundef','Diadef','Mesdef','Añodef',
+            'Sexo','Edadm','Edadp','Paisnacm','Paisnacp','Areag',
         ],
-        # Análisis
-        "cluster_vars":   ["Edadfal", "Edadm", "Edadp", "Añodef"],
-        "cat_cross":      ("Sexo", "Edadfal"),
-        "crosstab_cols":  ("Sexo", "Causdef"),
-        "n_clusters":     3,
-        "sample_size":    5000,
+        "cluster_vars": ["Edadm","Edadp","Añodef"],
+        "col_dep": "Depreg",
+        "col_anio": "Añodef",
     }
 
 
 # =============================================================================
-# PIPELINE
+# FUNCIONES PRINCIPALES
 # =============================================================================
 
-def run_pipeline(config: dict) -> None:
-    label = config["label"]
-    print(f"\n{'='*60}")
-    print(f"  PIPELINE: {label.upper()}")
-    print(f"{'='*60}\n")
-
-    # 1. Recolección y limpieza
+def convertir_sav_a_csv(config):
+    print(f"\n📦 Convirtiendo {config['label']}...")
     collect_and_clean(
         input_dir=config["input_dir"],
         output_path=config["output_csv"],
         master_columns=config["master_columns"],
     )
 
-    # 2. Análisis exploratorio + clustering
-    run_analysis(
+
+def analizar_dataset(config, df_def=None):
+    print(f"\n📊 Analizando {config['label']}...")
+    df = run_analysis(
         csv_path=config["output_csv"],
         cluster_vars=config["cluster_vars"],
-        cat_cross=config.get("cat_cross"),
-        crosstab_cols=config.get("crosstab_cols"),
-        n_clusters=config.get("n_clusters", 3),
-        sample_size=config.get("sample_size", 5000),
+        col_dep=config["col_dep"],
+        col_anio=config["col_anio"],
+        df_defunciones=df_def
+    )
+    return df
+
+
+def integrar():
+    print("\n🔗 Integrando datasets...")
+
+    df_nac = pd.read_csv("./data/collectedData_neonatales.csv")
+    df_def = pd.read_csv("./data/collectedData_defunciones.csv")
+
+    df_final = integrar_datasets(
+        df_nac=df_nac,
+        df_def=df_def,
+        col_dep_nac="Depocu",
+        col_dep_def="Depreg"
     )
 
+    df_final.to_csv("./data/merged_analysis.csv", index=False)
+    print("✅ Dataset integrado guardado en data/merged_analysis.csv")
+
+
+def inspect():
+    from inspectColumns import inspect_sav_files
+    inspect_sav_files("./data/raw")
+    inspect_sav_files("./data/raw_defunciones")
+
 
 # =============================================================================
-# ENTRY POINT
+# MENÚ INTERACTIVO
 # =============================================================================
 
-CONFIGS = {
-    "neonatales":  get_config_neonatales,
-    "defunciones": get_config_defunciones,
-}
+def menu():
+    while True:
+        print("\n" + "="*50)
+        print("📌 MENÚ PRINCIPAL")
+        print("="*50)
+        print("1. Convertir .sav → CSV (neonatales)")
+        print("2. Convertir .sav → CSV (defunciones)")
+        print("3. Análisis neonatales")
+        print("4. Análisis defunciones")
+        print("5. Integrar datasets (H2)")
+        print("6. Pipeline completo")
+        print("7. Inspect columnas")
+        print("0. Salir")
+
+        opcion = input("\nSelecciona una opción: ")
+
+        if opcion == "1":
+            convertir_sav_a_csv(get_config_neonatales())
+
+        elif opcion == "2":
+            convertir_sav_a_csv(get_config_defunciones())
+
+        elif opcion == "3":
+            analizar_dataset(get_config_neonatales())
+
+        elif opcion == "4":
+            analizar_dataset(get_config_defunciones())
+
+        elif opcion == "5":
+            integrar()
+
+        elif opcion == "6":
+            print("\n🚀 Ejecutando TODO el pipeline...")
+
+            cfg_nac = get_config_neonatales()
+            cfg_def = get_config_defunciones()
+
+            convertir_sav_a_csv(cfg_def)
+            convertir_sav_a_csv(cfg_nac)
+
+            df_def = pd.read_csv(cfg_def["output_csv"])
+
+            analizar_dataset(cfg_nac, df_def)
+            analizar_dataset(cfg_def)
+
+            integrar()
+
+        elif opcion == "7":
+            inspect()
+
+        elif opcion == "0":
+            print("👋 Saliendo...")
+            break
+
+        else:
+            print("❌ Opción inválida")
+
+
+# =============================================================================
+# ENTRY
+# =============================================================================
 
 if __name__ == "__main__":
-    targets = sys.argv[1:]   # argumentos desde la terminal
+    menu()
 
-    if not targets:
-        # Sin argumentos → ejecuta todo
-        targets = list(CONFIGS.keys())
-
-    for target in targets:
-        if target not in CONFIGS:
-            print(f"Dataset desconocido: '{target}'. Opciones: {list(CONFIGS.keys())}")
-            continue
-        run_pipeline(CONFIGS[target]())
